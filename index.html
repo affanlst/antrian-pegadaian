@@ -167,21 +167,13 @@
     document.getElementById("namaNasabah").value = "";
   }
 
-  function tambahCabang() {
+  async function tambahCabang() {
     const input = document.getElementById("cabangBaruInput");
     const kode = input.value.trim().toUpperCase();
-    const dropdown = document.getElementById("kodeCabang");
-
     if (!kode) return alert("Masukkan kode cabang terlebih dahulu.");
-    if ([...dropdown.options].some(opt => opt.value === kode)) {
-      alert("Cabang sudah ada di daftar.");
-      return;
-    }
 
-    const opt = document.createElement("option");
-    opt.value = kode;
-    opt.textContent = kode;
-    dropdown.appendChild(opt);
+    // Simpan ke Firebase (cabang_list)
+    await set(ref(db, `cabang_list/${kode}`), true);
     input.value = "";
     alert(`Cabang ${kode} berhasil ditambahkan.`);
   }
@@ -229,6 +221,25 @@
     set(ref(db, `antrian/${currentCabang}/${nomor}`), null);
   }
 
+  // Muat dropdown dari Firebase
+  function loadCabangDropdown() {
+    const dropdown = document.getElementById("kodeCabang");
+    const cabangRef = ref(db, "cabang_list");
+
+    onValue(cabangRef, (snapshot) => {
+      dropdown.innerHTML = `<option disabled selected value="">-- Pilih Cabang --</option>`;
+      const data = snapshot.val();
+      if (!data) return;
+
+      Object.keys(data).forEach((kode) => {
+        const opt = document.createElement("option");
+        opt.value = kode;
+        opt.textContent = kode;
+        dropdown.appendChild(opt);
+      });
+    });
+  }
+
   document.getElementById("kodeCabang").addEventListener("change", (e) => {
     const kode = e.target.value;
     currentCabang = kode;
@@ -238,12 +249,12 @@
     });
   });
 
-  // Init voice
+  loadCabangDropdown();
   window.speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
 
-  // Expose for onclick
-  window.tambahAntrian = tambahAntrian;
+  // Expose for inline onclick
   window.tambahCabang = tambahCabang;
+  window.tambahAntrian = tambahAntrian;
   window.panggilAntrian = panggilAntrian;
   window.hapusAntrian = hapusAntrian;
 </script>

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Sistem Antrian Pegadaian</title>
   <style>
     body {
@@ -49,6 +49,7 @@
       cursor: pointer;
       width: 100%;
       font-weight: bold;
+      margin-top: 5px;
     }
     .antrian-item {
       border-radius: 8px;
@@ -81,11 +82,22 @@
 </header>
 
 <div class="container">
+  <!-- Tambah Cabang -->
   <div class="form-input">
-    <label>Kode Cabang:</label>
-    <input type="text" id="kodeCabang" placeholder="Contoh: CBG01">
+    <label>Tambah Cabang Baru:</label>
+    <input type="text" id="cabangBaruInput" placeholder="Contoh: CBG06">
+    <button onclick="tambahCabang()">Tambah Cabang</button>
   </div>
 
+  <!-- Pilih Cabang -->
+  <div class="form-input">
+    <label>Pilih Cabang:</label>
+    <select id="kodeCabang">
+      <option disabled selected value="">-- Pilih Cabang --</option>
+    </select>
+  </div>
+
+  <!-- Tambah Antrian -->
   <div class="form-input">
     <label>Nama Nasabah:</label>
     <input type="text" id="namaNasabah" placeholder="Contoh: Ibu Siti">
@@ -115,7 +127,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getDatabase, ref, onValue, set, get, child
+    getDatabase, ref, onValue, set, get
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
@@ -123,43 +135,55 @@
     authDomain: "alat-pendeteksi-kecepatan.firebaseapp.com",
     databaseURL: "https://alat-pendeteksi-kecepatan-default-rtdb.firebaseio.com",
     projectId: "alat-pendeteksi-kecepatan",
-    storageBucket: "alat-pendeteksi-kecepatan.firebasestorage.app",
+    storageBucket: "alat-pendeteksi-kecepatan.appspot.com",
     messagingSenderId: "825727574039",
     appId: "1:825727574039:web:e061892e4efa39c673fc52"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-
   let currentCabang = "";
-  let nomorAntrian = 1;
 
-  // Fungsi dapatkan nomor antrian berikutnya
   async function getNextNomor(cabang) {
     const last = await get(ref(db, `nomor_terakhir/${cabang}`));
     if (!last.exists()) return "A001";
-
-    const lastNomor = last.val(); // A009
+    const lastNomor = last.val();
     const angka = parseInt(lastNomor.substring(1)) + 1;
     return "A" + angka.toString().padStart(3, "0");
   }
 
   async function tambahAntrian() {
-    const kode = document.getElementById("kodeCabang").value.trim().toUpperCase();
+    const kode = document.getElementById("kodeCabang").value;
+    if (!kode) return alert("Pilih cabang terlebih dahulu.");
     const nama = document.getElementById("namaNasabah").value.trim();
     const jenis = document.getElementById("jenisTransaksi").value;
-
-    if (!kode) return alert("Kode cabang wajib diisi.");
     if (!nama) return alert("Nama nasabah wajib diisi.");
 
     currentCabang = kode;
     const nomor = await getNextNomor(kode);
-
     const data = { nama, jenis, timestamp: Date.now() };
     await set(ref(db, `antrian/${kode}/${nomor}`), data);
     await set(ref(db, `nomor_terakhir/${kode}`), nomor);
-
     document.getElementById("namaNasabah").value = "";
+  }
+
+  function tambahCabang() {
+    const input = document.getElementById("cabangBaruInput");
+    const kode = input.value.trim().toUpperCase();
+    const dropdown = document.getElementById("kodeCabang");
+
+    if (!kode) return alert("Masukkan kode cabang terlebih dahulu.");
+    if ([...dropdown.options].some(opt => opt.value === kode)) {
+      alert("Cabang sudah ada di daftar.");
+      return;
+    }
+
+    const opt = document.createElement("option");
+    opt.value = kode;
+    opt.textContent = kode;
+    dropdown.appendChild(opt);
+    input.value = "";
+    alert(`Cabang ${kode} berhasil ditambahkan.`);
   }
 
   function panggilAntrian(nomor, data) {
@@ -184,7 +208,6 @@
   function renderAntrian(data) {
     const container = document.getElementById("daftarAntrian");
     container.innerHTML = "";
-
     if (!data) return;
 
     Object.entries(data).forEach(([nomor, value]) => {
@@ -207,7 +230,7 @@
   }
 
   document.getElementById("kodeCabang").addEventListener("change", (e) => {
-    const kode = e.target.value.trim().toUpperCase();
+    const kode = e.target.value;
     currentCabang = kode;
     const cabangRef = ref(db, `antrian/${kode}`);
     onValue(cabangRef, (snapshot) => {
@@ -215,10 +238,12 @@
     });
   });
 
-  // Trigger voice init
+  // Init voice
   window.speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
-  // ... setelah semua fungsi sudah didefinisikan
+
+  // Expose for onclick
   window.tambahAntrian = tambahAntrian;
+  window.tambahCabang = tambahCabang;
   window.panggilAntrian = panggilAntrian;
   window.hapusAntrian = hapusAntrian;
 </script>
